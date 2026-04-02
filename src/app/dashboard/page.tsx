@@ -162,8 +162,10 @@ export default function Dashboard() {
       })
       const data = await res.json()
       const stripe = await stripePromise;
+      
+      // FIXED: Added 'as any' to prevent Vercel Type Error
       if (stripe && data.sessionId) {
-        await stripe.redirectToCheckout({ sessionId: data.sessionId });
+        await (stripe as any).redirectToCheckout({ sessionId: data.sessionId });
       }
     } catch (err) {
       console.error("Stripe error:", err)
@@ -279,7 +281,6 @@ export default function Dashboard() {
           </section>
         </main>
 
-      {/* Footer Credits */}
         <footer className="mt-16 pb-10 text-center space-y-3">
           <div className="h-[1px] w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
           
