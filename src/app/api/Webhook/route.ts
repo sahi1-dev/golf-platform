@@ -6,24 +6,22 @@ import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
 export async function POST(req: Request) {
-  // Runtime Initialization: Build-time pe crash nahi hoga
+  // Saari keys ko function ke andar rakha hai taaki build time pe error na aaye
   const stripeSecret = process.env.STRIPE_SECRET_KEY || ''
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ''
 
-  // Stripe Setup with Exact Version Type-Casting
+  // Build Safety Check: Agar keys missing hain toh error handle karega, crash nahi
+  if (!stripeSecret || !supabaseUrl || !supabaseServiceKey || !webhookSecret) {
+    return NextResponse.json({ error: "Configuration missing" }, { status: 500 })
+  }
+
   const stripe = new Stripe(stripeSecret, {
     apiVersion: '2026-03-25.dahlia' as Stripe.LatestApiVersion,
   })
 
   const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
-
-  // Safety Check
-  if (!stripeSecret || !webhookSecret || !supabaseUrl || !supabaseServiceKey) {
-    console.error("Missing Environment Variables");
-    return NextResponse.json({ error: "Configuration missing" }, { status: 500 })
-  }
 
   const body = await req.text()
   const headerList = await headers()
@@ -54,7 +52,6 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ received: true })
   } catch (err) {
-    // ESLint fix: 'err' is now used in console
     console.error("Webhook Error Details:", err)
     return NextResponse.json({ error: "Webhook Error" }, { status: 400 })
   }
