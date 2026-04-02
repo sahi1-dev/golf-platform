@@ -1,23 +1,34 @@
+export const dynamic = 'force-dynamic';
+
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import Stripe from 'stripe'
 import { createClient } from '@supabase/supabase-js'
 
-// Fix: Version string matched exactly to your SDK requirement
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2026-03-25.dahlia', 
+const stripeSecret = process.env.STRIPE_SECRET_KEY || ''
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || ''
+
+// Fix: Version ko exact type mein cast kiya hai bina 'any' use kiye
+const stripe = new Stripe(stripeSecret, {
+  apiVersion: '2026-03-25.dahlia' as Stripe.LatestApiVersion,
 })
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
-
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
 export async function POST(req: Request) {
+  if (!stripeSecret || !webhookSecret || !supabaseUrl || !supabaseServiceKey) {
+    return NextResponse.json({ error: "Configuration missing" }, { status: 500 })
+  }
+
   const body = await req.text()
-  const signature = (await headers()).get('stripe-signature') as string
+  const headerList = await headers()
+  const signature = headerList.get('stripe-signature') as string
+
+  if (!signature) {
+    return NextResponse.json({ error: "Missing signature" }, { status: 400 })
+  }
 
   let event: Stripe.Event
 
@@ -40,8 +51,6 @@ export async function POST(req: Request) {
 
       if (error) {
         console.error('Supabase Update Error:', error)
-      } else {
-        console.log(`User ${userId} status updated to active`)
       }
     }
   }
